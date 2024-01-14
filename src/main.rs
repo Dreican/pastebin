@@ -3,6 +3,7 @@ mod past_id;
 #[macro_use]
 extern crate rocket;
 
+use std::{fs, io};
 use past_id::PasteId;
 use rocket::Data;
 use rocket::data::ToByteUnit;
@@ -28,6 +29,11 @@ fn index() -> &'static str {
     "
 }
 
+#[get("/all")]
+async fn all() -> Result<Vec<String>, io::Error> {
+    fs::read_dir(PasteId::get_upload_dir())?.map(|e| e.file_name().into_string()).collect::<Result<Vec<String>, io::Error>>()?
+}
+
 #[get("/<id>")]
 async fn retrieve(id: PasteId<'_>) -> Option<File> {
     File::open(id.file_path()).await.ok()
@@ -40,7 +46,12 @@ async fn upload(past: Data<'_>) -> std::io::Result<String> {
     Ok(uri!(HOST, retrieve(id)).to_string())
 }
 
+#[delete("/<id>")]
+async fn delete(id: PasteId<'_>) -> Option<()> {
+    fs::remove_file(id.file_path()).await.ok()
+}
+
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, retrieve, upload])
+    rocket::build().mount("/", routes![index, all, retrieve, upload, delete])
 }

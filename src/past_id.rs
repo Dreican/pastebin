@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use rand::{self, Rng};
 use rocket::request::FromParam;
 
+const UPLOAD_DIR: &str = "upload";
+
 #[derive(UriDisplayPath)]
 pub struct PasteId<'a>(Cow<'a, str>);
 
@@ -21,9 +23,15 @@ impl PasteId<'_> {
     }
     
     pub fn file_path(&self) -> PathBuf {
-        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/", "upload");
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/", UPLOAD_DIR);
         Path::new(root).join(self.0.as_ref())
     }
+    
+    pub fn get_upload_dir() -> &'static Path {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/", UPLOAD_DIR);
+        Path::new(root)
+    }
+    
 }
 
 impl<'a> FromParam<'a> for PasteId<'a> {
