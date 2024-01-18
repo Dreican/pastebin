@@ -3,11 +3,13 @@ mod past_id;
 #[macro_use]
 extern crate rocket;
 
-use std::{fs, io};
+use std::io;
 use past_id::PasteId;
 use rocket::Data;
 use rocket::data::ToByteUnit;
 use rocket::http::uri::Absolute;
+use rocket::serde::json::Json;
+use rocket::tokio::fs;
 use rocket::tokio::fs::File;
 
 const ID_LENGTH: usize = 5;
@@ -30,8 +32,8 @@ fn index() -> &'static str {
 }
 
 #[get("/all")]
-async fn all() -> Result<Vec<String>, io::Error> {
-    fs::read_dir(PasteId::get_upload_dir())?.map(|e| e.file_name().into_string()).collect::<Result<Vec<String>, io::Error>>()?
+async fn all() -> Result<Json<Vec<String>>, io::Error> {
+    Ok::<Json<Vec<String>>, io::Error>(Json(PasteId::get_all_files().await?))
 }
 
 #[get("/<id>")]
@@ -51,7 +53,17 @@ async fn delete(id: PasteId<'_>) -> Option<()> {
     fs::remove_file(id.file_path()).await.ok()
 }
 
+#[delete("/all")]
+async fn delete_all() -> Result<(), io::Error> {
+    let files = PasteId::get_all_files().await?;
+    for file in files {
+        let filepath = &format!("{}\\{}", past_id::ROOT, file);
+        fs::remove_file(filepath).await?
+    }
+    Ok(())
+}
+
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, all, retrieve, upload, delete])
+    rocket::build().mount("/", routes![index, all, retrieve, upload, delete, delete_all])
 }
